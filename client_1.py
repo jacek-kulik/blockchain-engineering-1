@@ -42,16 +42,17 @@ class BlockchainEngineeringCommunity(Community, PeerObserver):
 
     def started(self) -> None:
         print(f"Started peer")
+        print(f"I am: {self.my_peer}, public key: {self.my_peer.public_key.key_to_bin().hex()}")
         self.network.add_peer_observer(self)
 
     def on_peer_added(self, peer: Peer) -> None:
-        print(f"I am: {self.my_peer}, I found: {peer.public_key.key_to_bin().hex()}")
+        print(f"I found: {peer.public_key.key_to_bin().hex()}")
 
         if peer.public_key.key_to_bin() == bytes.fromhex(SERVER_PUBLIC_KEY):
             print(f"Found server!")
             self.server = peer
 
-            self.send_challenge()
+            #self.send_challenge()
     
     def on_peer_removed(self, peer: Peer) -> None:
         pass
