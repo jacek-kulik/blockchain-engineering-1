@@ -23,10 +23,11 @@ MY_ORDER = 2
 # 2. Jacek
 # 3. Victor
 
-GROUP_ID = "b6d52b01daa6540e"
+GROUP_ID = "4bb7a5c4f6a550f3"
 
-REGISTER_GROUP = False
-START_PROTOCOL = False
+REGISTER_GROUP = True
+START_PROTOCOL = True
+BYPASS = False
 
 @dataclass
 class RegisterMessage(DataClassPayload[1]):
@@ -112,12 +113,7 @@ class BlockchainEngineeringCommunity(Community, PeerObserver):
         print(f"I am: {self.my_peer}, public key: {self.my_peer.public_key.key_to_bin().hex()}")
         self.network.add_peer_observer(self)
 
-        if MY_ORDER == 1:
-            self.peers[0] = self.my_peer
-        elif MY_ORDER == 2:
-            self.peers[1] = self.my_peer
-        elif MY_ORDER == 3:
-            self.peers[2] = self.my_peer
+        self.peers[MY_ORDER-1] = self.my_peer
 
     def on_peer_added(self, peer: Peer) -> None:
         peer_key = peer.public_key.key_to_bin()
@@ -128,10 +124,9 @@ class BlockchainEngineeringCommunity(Community, PeerObserver):
             print("Found server!")
             self.server = peer
 
-            if REGISTER_GROUP:
+            if BYPASS:
                 self.ez_send(self.server, RegisterMessage(PUBLIC_KEY_1, PUBLIC_KEY_2, PUBLIC_KEY_3))
-            if START_PROTOCOL:
-                self.ez_send(self.server, ChallengeRequestMessage(GROUP_ID))
+
 
         if peer_key == PUBLIC_KEY_1:
             print("Found peer1!")
@@ -143,6 +138,14 @@ class BlockchainEngineeringCommunity(Community, PeerObserver):
             print("Found peer3!")
             self.peers[2] = peer
         
+        if None not in self.peers and self.server is not None:
+            print("Ready to start")
+            if REGISTER_GROUP:
+                self.ez_send(self.server, RegisterMessage(PUBLIC_KEY_1, PUBLIC_KEY_2, PUBLIC_KEY_3))
+            elif START_PROTOCOL:
+                self.ez_send(self.server, ChallengeRequestMessage(GROUP_ID))
+
+        
     
     def on_peer_removed(self, peer: Peer) -> None:
         pass
@@ -153,11 +156,14 @@ class BlockchainEngineeringCommunity(Community, PeerObserver):
             return
         
         print(payload)
-        for p in self.peers:
-            if p is None:
-                print("Peer none!")
-                continue
-            self.ez_send(p, GroupIDMessage(payload.group_id))
+        self.send_to_others(GroupIDMessage(payload.group_id))
+
+        # Handle groupid yourself
+        global GROUP_ID
+        GROUP_ID = payload.group_id
+        if START_PROTOCOL:
+            self.ez_send(self.server, ChallengeRequestMessage(GROUP_ID))
+
     
     @lazy_wrapper(ChallengeResponseMessage)
     def on_challenge_response(self, peer: Peer, payload: ChallengeResponseMessage) -> None:
@@ -165,15 +171,20 @@ class BlockchainEngineeringCommunity(Community, PeerObserver):
             return
         self.round_number = payload.round_number
         print(payload)
-        for p in self.peers:
-            if p is None:
-                print("Peer is none!")
-                continue
-            self.ez_send(p, NonceMessage(payload.nonce))
+        self.send_to_others(NonceMessage(payload.nonce))
 
+        # Handle nonce yourself
+        sig = self.crypto.create_signature(self.my_peer.key, payload.nonce)
+        self.sigs[MY_ORDER-1] = sig
+        all_sigs = all(sig is not None for sig in self.sigs)
+        if all_sigs:
+            self.ez_send(self.server,
+                         BundleSubmissionMessage(GROUP_ID, self.round_number, self.sigs[0], self.sigs[1], self.sigs[2]))
+    
 
     @lazy_wrapper(RoundResultMessage)
     def on_round_result(self, peer: Peer, payload: RoundResultMessage) -> None:
+        print("Got RoundResult")
         if peer.public_key.key_to_bin() != SERVER_PUBLIC_KEY:
             return
         print(payload)
@@ -193,6 +204,7 @@ class BlockchainEngineeringCommunity(Community, PeerObserver):
     
     @lazy_wrapper(PassTurnMessage)
     def on_pass_turn(self, peer: Peer, payload: RoundResultMessage) -> None:
+        print("Got PassTurn")
         if peer.public_key.key_to_bin() not in PUBLIC_KEYS:
             return
         print(payload)
@@ -201,6 +213,7 @@ class BlockchainEngineeringCommunity(Community, PeerObserver):
     
     @lazy_wrapper(NonceMessage)
     def on_nonce(self, peer: Peer, payload: NonceMessage) -> None:
+        print("Got Nonce")
         if peer.public_key.key_to_bin() not in PUBLIC_KEYS:
             return
         print(payload)
@@ -209,6 +222,7 @@ class BlockchainEngineeringCommunity(Community, PeerObserver):
     
     @lazy_wrapper(SignatureMessage)
     def on_signature(self, peer: Peer, payload: SignatureMessage) -> None:
+        print("Got Signature")
         if peer.public_key.key_to_bin() not in PUBLIC_KEYS:
             return
         print(payload)
@@ -229,12 +243,25 @@ class BlockchainEngineeringCommunity(Community, PeerObserver):
     
     @lazy_wrapper(GroupIDMessage)
     def on_group_id(self, peer: Peer, payload: GroupIDMessage) -> None:
+        print("Got GroupID")
         if peer.public_key.key_to_bin() not in PUBLIC_KEYS:
             return
         global GROUP_ID
         GROUP_ID = payload.group_id
         print(payload)
 
+        if START_PROTOCOL:
+            self.ez_send(self.server, ChallengeRequestMessage(GROUP_ID))
+        
+
+    def send_to_others(self, payload: DataClassPayload) -> None:
+        for p in self.peers:
+            if p is None:
+                print(f"None peer in sending: {payload}")
+                continue
+            if p == self.my_peer:
+                continue
+            self.ez_send(p, payload)
             
 
 
