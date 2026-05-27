@@ -52,7 +52,7 @@ class BlockchainEngineeringCommunity(Community, PeerObserver):
             print(f"Found server!")
             self.server = peer
 
-            #self.send_challenge()
+            self.send_challenge()
     
     def on_peer_removed(self, peer: Peer) -> None:
         pass
