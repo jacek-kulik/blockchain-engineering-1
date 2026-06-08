@@ -16,11 +16,11 @@ from ipv8.util import run_forever
 from ipv8_service import IPv8
 
 
-COMMUNITY_ID = bytes.fromhex(
+REGISTRATION_COMMUNITY_ID = bytes.fromhex(
     "4c616233426c6f636b636861696e323032365057"
 )
 OUR_COMMUNITY_ID = bytes.fromhex(
-    "4c61623247726f75705369676e696e67323032a7"
+    "4c61623247726f75705369676e696e67323032b2"
 )
 SERVER_PUBLIC_KEY = bytes.fromhex(
     "4c69624e61434c504b3ae3fc099fb56ca3b5e1de9a1c843387f2acdbb78b1bd4350ffde518068a0d246344b10d0d8c355fd0d76873e7d7f7838f3715e025af08f791324495e083331ce6"
@@ -49,7 +49,7 @@ _ = RegisterResponse(False, "")
 
 class RegistrationCommunity(Community, PeerObserver):
 
-    community_id = COMMUNITY_ID
+    community_id = REGISTRATION_COMMUNITY_ID
 
     def __init__(self, settings: CommunitySettings) -> None:
         super().__init__(settings)

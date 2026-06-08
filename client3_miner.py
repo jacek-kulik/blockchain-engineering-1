@@ -3,6 +3,7 @@ from hashlib import sha256
 from dataclasses import dataclass
 from hashlib import sha256
 from ipv8.keyvault.crypto import default_eccrypto
+import os
 
 @dataclass
 class Block:
@@ -104,22 +105,23 @@ def mine_block_with_stop(
 
     possible = Block(height, prev_hash, txs_hash, timestamp, difficulty, 0, bytes(32), tx_hashes)
     print("Mining summ stopping blocks")
+    num_tries = 0
 
-    while possible.nonce < 10_100_000_000:
+    while num_tries < 10_100_000_000:
         if should_stop():
             return None
-        if possible.nonce % 10_000_000 == 0:
-            print(f"Looked through {possible.nonce:,} nonces")
-
+        if num_tries % 10_000_000 == 0:
+            print(f"Looked through {num_tries:,} nonces")
+        nonce = int.from_bytes(os.urandom(7), "big")
+        possible.nonce = nonce
         header = block_to_header(possible)
         block_hash = compute_block_hash(header)
-
+        
         if check_pow(block_hash, possible.difficulty):
-            print(f"Found sblock!: {possible}")
             possible.block_hash = block_hash
+            print(f"Found sblock!: {possible}")
             return possible
-
-        possible.nonce += 1
+        num_tries += 1
 
 def verify_block(block: Block) -> bool:
     header = block_to_header(block)
@@ -145,3 +147,4 @@ def verify_prev_links_cleanly(block: Block, tipHash: bytes) -> bool:
     return True
 
 genesis_block.block_hash = compute_block_hash(block_to_header(genesis_block))
+print(genesis_block.block_hash)

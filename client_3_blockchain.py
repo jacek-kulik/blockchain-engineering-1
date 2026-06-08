@@ -15,7 +15,7 @@ import threading
 
 
 # Already changed, ours now
-COMMUNITY_ID = bytes.fromhex("4c61623247726f75705369676e696e67323032a7")
+COMMUNITY_ID = bytes.fromhex("4c61623247726f75705369676e696e67323032b2")
 
 SERVER_PUBLIC_KEY = bytes.fromhex(
     "4c69624e61434c504b3ae3fc099fb56ca3b5e1de9a1c843387f2acdbb78b1bd4350ffde518068a0d246344b10d0d8c355fd0d76873e7d7f7838f3715e025af08f791324495e083331ce6"
@@ -38,7 +38,7 @@ PUBLIC_KEY_3 = bytes.fromhex(
 
 PUBLIC_KEYS = [PUBLIC_KEY_1, PUBLIC_KEY_2, PUBLIC_KEY_3]
 GROUP_ID = "a6edc7f90a618bd8"
-DIFFICULTY = 24
+DIFFICULTY = 25
 
 MY_ORDER = 2
 
@@ -221,7 +221,7 @@ class BlockchainEngineeringCommunity(Community, PeerObserver):
     def pow_worker(self, job_id: int, stop_event: threading.Event) -> None:
         if not self.mempool:
             print("Empty mempool")
-            #return
+            # return
         
         block = mine_block_with_stop(
             len(self.chain),
@@ -287,11 +287,19 @@ class BlockchainEngineeringCommunity(Community, PeerObserver):
             [payload.tx_hashes[i:i+32] for i in range(0, len(payload.tx_hashes), 32)]
         )
 
+        block.block_hash = compute_block_hash(block_to_header(block))
+
         if not verify_block(block):
             print(f"Received invalid block: {block}")
             return
         
         if not verify_prev_links_cleanly(block, self.chain[-1].block_hash):
+            print(
+                f"Link mismatch: block.height={block.height}, "
+                f"block.prev_hash={block.prev_hash.hex()}, "
+                f"local_tip_height={self.chain[-1].height}, "
+                f"local_tip_hash={self.chain[-1].block_hash.hex()}"
+            )
             print("Received block from different chain")
 
             if block.height < len(self.chain)-1:
@@ -409,6 +417,7 @@ class BlockchainEngineeringCommunity(Community, PeerObserver):
             [payload.tx_hashes[i:i+32] for i in range(0, len(payload.tx_hashes), 32)]
         )
         height = block.height
+        block.block_hash = compute_block_hash(block_to_header(block))
         if not verify_block(block):
             print(f"Invalid block during sync at height {height}")
             self.cancel_sync()
@@ -483,7 +492,7 @@ class BlockchainEngineeringCommunity(Community, PeerObserver):
     
     @lazy_wrapper(GetBlock)
     def on_get_block(self, peer: Peer, payload: GetBlock) -> None:
-        print(f"Got GetBloCK: {payload}")
+        print(f"Got GetBlock: {payload} from {peer}")
         key = peer.public_key.key_to_bin()
         if key != SERVER_PUBLIC_KEY and key not in OTHER_PEER_KEYS:
             return
@@ -503,7 +512,7 @@ class BlockchainEngineeringCommunity(Community, PeerObserver):
             block.block_hash,
             b"".join(block.tx_hashes)
         )
-
+        print(f"Responding to getBlock with {response}")
         self.ez_send(peer, response)
     
     @lazy_wrapper(HashRequest)
