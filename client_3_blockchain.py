@@ -746,10 +746,20 @@ async def start_client() -> None:
     loop = asyncio.get_running_loop()
     assert community is not None
 
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, community.save_chain)
+    # def shutdown() -> None:
+    #     community.save_chain()
+    #     loop.stop()
 
-    await run_forever()
+    # for sig in (signal.SIGINT, signal.SIGTERM):
+    #     try:
+    #         loop.add_signal_handler(sig, shutdown)
+    #     except NotImplementedError:
+    #         signal.signal(sig, lambda *_: shutdown())
+
+    try:
+        await run_forever()
+    finally:
+        community.save_chain()
 
 
 asyncio.run(start_client())
