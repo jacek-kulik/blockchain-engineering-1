@@ -159,4 +159,4 @@ def verify_prev_links_cleanly(block: Block, tipHash: bytes) -> bool:
     return True
 
 genesis_block.block_hash = compute_block_hash(block_to_header(genesis_block))
-print(genesis_block.block_hash)
+# print(genesis_block.block_hash)

@@ -19,8 +19,8 @@ import threading
 
 load_dotenv()
 
-PARTITION=False
-LOAD_FROM_FILE=True
+PARTITION=True
+LOAD_FROM_FILE=False
 
 # Load environment variables 
 community_3_id = getenv("CLIENT_3_COMMUNITY_ID", "")
@@ -696,7 +696,7 @@ class BlockchainEngineeringCommunity(Community, PeerObserver):
         elif height > 0: 
             self.search_low = mid + 1
             mid: int = self.compute_mid()
-
+            if mid == height: return
             print(f"Need to look forwards to {mid}")
             message = DoubleHashRequest(mid)
             self.ez_send(peer, message)
